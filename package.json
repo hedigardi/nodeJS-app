@@ -1,0 +1,23 @@
+{
+  "name": "nodejs-app",
+  "version": "1.0.0",
+  "description": "My NodeJS Blockchain App",
+  "main": "server.mjs",
+  "scripts": {
+    "dev": "nodemon --env-file=config/config.env server.mjs"
+  },
+  "author": "Hedi Gardi",
+  "license": "MIT",
+  "devDependencies": {
+    "ndb": "^1.1.5",
+    "nodemon": "^3.1.0",
+    "@vitest/ui": "^1.5.2",
+    "vitest": "^1.5.2"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "uuid": "^9.0.1"
+  }
+}

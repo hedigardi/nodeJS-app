@@ -1,81 +1,77 @@
 import { createHash } from '../utilities/crypto-lib.mjs';
 import Block from './Block.mjs';
 
-export default class Blockchain {
-  constructor() {
+const Blockchain = class {
+  constructor(name) {
+    this.name = name || 'Blockchain';
     this.chain = [];
-    this.createBlock(Date.now(), '0', '0', []);
+    this.createGenesisBlock();
+
+    this.memberNodes = [];
+    this.nodeUrl = process.argv[3];
   }
 
-  createBlock(
-    timestamp,
-    previousBlockHash,
-    currentBlockHash,
-    data,
-    difficulty
-  ) {
+  createGenesisBlock() {
+    const block = new Block(0, Date.now(), null, []);
+    this.chain.push(block);
+  }
+
+  createBlock(data) {
     const block = new Block(
-      timestamp,
-      this.chain.length + 1,
-      previousBlockHash,
-      currentBlockHash,
-      data,
-      difficulty
+      this.chain.length,
+      Date.now(),
+      this.getLastBlock().hash,
+      data
     );
+    block.hash = this.hashBlock(block);
 
     this.chain.push(block);
-
     return block;
-  }
-
-  getAllBlocks() {
-    return this.chain;
   }
 
   getLastBlock() {
     return this.chain.at(-1);
   }
 
-  hashBlock(timestamp, previousBlockHash, currentBlockData, nonce, difficulty) {
-    const stringToHash =
-      timestamp.toString() +
-      previousBlockHash +
-      JSON.stringify(currentBlockData) +
-      nonce +
-      difficulty;
-    const hash = createHash(stringToHash);
+  hashBlock(block) {
+    const stringToHash = (
+      block.index +
+      block.timestamp +
+      block.previousHash +
+      block.data +
+      block.nonce +
+      block.difficulty
+    ).toString();
 
-    return hash;
+    return createHash(stringToHash);
   }
 
-  proofOfWork(previousBlockHash, data) {
+  proofOfWork(data) {
     const lastBlock = this.getLastBlock();
+    const block = this.createBlock(data);
+
     let difficulty, hash, timestamp;
     let nonce = 0;
 
     do {
-      nonce++;
       timestamp = Date.now();
+      nonce++;
+      difficulty = lastBlock.difficulty;
+      hash = this.hashBlock({ ...block, timestamp, nonce, difficulty });
+    } while (!hash.startsWith('0'.repeat(difficulty)));
 
-      difficulty = this.difficultyAdjustment(lastBlock);
-      hash = this.hashBlock(
-        timestamp,
-        previousBlockHash,
-        data,
-        nonce,
-        difficulty
-      );
-    } while (hash.substring(0, difficulty) !== '0'.repeat(difficulty));
+    Object.assign(block, { timestamp, hash, nonce, difficulty });
 
-    return { nonce, difficulty, timestamp };
+    return block;
   }
 
-  difficultyAdjustment(lastBlock) {
-    const MINE_RATE = process.env.MINE_RATE;
-    let { difficulty, timestamp } = lastBlock;
+  adjustDifficulty(block) {
+    let { difficulty, timestamp } = block;
 
-    return timestamp + MINE_RATE > timestamp
+    return timestamp + process.env.MINE_RATE > timestamp
       ? +difficulty + 1
       : +difficulty - 1;
   }
-}
+};
+
+export default Blockchain;

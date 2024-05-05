@@ -1,52 +1,93 @@
 import { blockchain } from '../startup.mjs';
 import ErrorResponse from '../utilities/ErrorResponseModel.mjs';
 import ResponseModel from '../utilities/ResponseModel.mjs';
-import fileHandler from '../utilities/fileHandler.mjs';
+import FileHandler from '../utilities/fileHandler.mjs';
+
+const blockchainJSON = new FileHandler(
+  'data',
+  `blockchain-${process.argv[2]}.json`
+);
 
 const getBlockchain = (req, res, next) => {
-  res
-    .status(200)
-    .json(new ResponseModel({ statusCode: 200, data: blockchain }));
+  res.status(200).json(new ResponseModel({ status: 200, data: blockchain }));
 };
 
-const createBlock = (req, res, next) => {
-  const lastBlock = blockchain.getLastBlock();
-  const data = req.body;
-  const { nonce, difficulty, timestamp } = blockchain.proofOfWork(
-    lastBlock.currentBlockHash,
-    data
-  );
+const getAllBlocks = (req, res, next) => {
+  res
+    .status(200)
+    .json(new ResponseModel({ status: 200, data: blockchain.chain }));
+};
 
-  const currentBlockHash = blockchain.hashBlock(
-    timestamp,
-    lastBlock.currentBlockHash,
-    data,
-    nonce,
-    difficulty
-  );
-
-  const block = blockchain.createBlock(
-    timestamp,
-    lastBlock.currentBlockHash,
-    currentBlockHash,
-    data,
-    difficulty
-  );
-
-  res.status(201).json(new ResponseModel({ statusCode: 201, data: block }));
+const getLatestBlock = (req, res, next) => {
+  res
+    .status(200)
+    .json(new ResponseModel({ status: 200, data: blockchain.getLastBlock() }));
 };
 
 const getBlockByIndex = (req, res, next) => {
-  const blockIndex = parseInt(req.params.index);
-  const block = blockchain.chain[blockIndex - 1];
+  const index = +req.params.index;
+  const block = blockchain.chain[index];
 
   if (!block) {
     return next(
-      new ErrorResponse(`Could't find the block with index: ${blockIndex}`, 404)
+      new ErrorResponse(`Couldn't find block with index ${index}`, 404)
     );
   }
 
-  res.status(200).json(new ResponseModel({ statusCode: 200, data: block }));
+  res.status(200).json(new ResponseModel({ status: 200, data: block }));
 };
 
-export { createBlock, getBlockchain, getBlockByIndex };
+const mineBlock = (req, res, next) => {
+  const block = blockchain.proofOfWork(req.body);
+
+  blockchainJSON.write(blockchain);
+
+  res.status(201).json(new ResponseModel({ status: 201, data: block }));
+};
+
+const syncChain = async (req, res, next) => {
+  let maxLength = blockchain.chain.length;
+  let longestChain = null;
+
+  try {
+    for (const member of blockchain.memberNodes) {
+      const response = await fetch(`${member}/api/v1/blockchain`);
+
+      if (response.ok) {
+        const result = await response.json();
+
+        if (
+          result.data &&
+          result.data.chain &&
+          result.data.chain.length > maxLength
+        ) {
+          maxLength = result.data.chain.length;
+          longestChain = result.data.chain;
+        }
+      }
+    }
+
+    if (longestChain) {
+      blockchain.chain = longestChain;
+      blockchainJSON.write(blockchain);
+    }
+  } catch (error) {
+    return next(new ErrorResponse(error, error.status));
+  }
+
+  res.status(200).json(
+    new ResponseModel({
+      status: 200,
+      data: { message: 'Synchronization is successful!' },
+    })
+  );
+};
+
+export {
+  getBlockchain,
+  getAllBlocks,
+  getLatestBlock,
+  getBlockByIndex,
+  mineBlock,
+  syncChain,
+};

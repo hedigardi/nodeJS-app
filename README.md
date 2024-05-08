@@ -12,5 +12,9 @@
    ```
 3. Start the application:
    ```bash
-   npm run node-1 OR/AND npm run node-2
+   npm run node-1
+   ```
+   OR/AND
+   ```bash
+   npm run node-2
    ```

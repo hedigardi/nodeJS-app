@@ -4,6 +4,7 @@ import errorHandler from './middleware/errorHandler.mjs';
 import blockchainRouter from './routes/blockchain-routes.mjs';
 import ErrorResponse from './utilities/ErrorResponseModel.mjs';
 import membersRouter from './routes/members-routes.mjs';
+import { PORT } from './startup.mjs';
 
 dotenv.config({ path: './config/config.env' });
 
@@ -20,5 +21,4 @@ app.all('*', (req, res, next) => {
 
 app.use(errorHandler);
 
-const PORT = process.argv[2] || process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));

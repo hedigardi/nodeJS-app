@@ -19,7 +19,7 @@ const createMemberNode = (req, res, next) => {
   ) {
     return next(
       new ErrorResponse(
-        `Node ${node} is already registered on the ${blockchain.name}`,
+        `${node} is already registered on the ${blockchain.name}`,
         400
       )
     );
@@ -36,7 +36,7 @@ const createMemberNode = (req, res, next) => {
     new ResponseModel({
       status: 201,
       data: {
-        message: `Node ${node} has been registered on the ${blockchain.name}`,
+        message: `${node} has been registered on the ${blockchain.name}`,
       },
     })
   );

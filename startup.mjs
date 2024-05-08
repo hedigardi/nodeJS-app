@@ -1,30 +1,15 @@
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
-
 import Blockchain from './models/Blockchain.mjs';
-import FileHandler from './utilities/fileHandler.mjs';
 
 global.__appdir = dirname(fileURLToPath(import.meta.url));
 
-const setupBlockchain = () => {
-  const blockchainJSON = new FileHandler(
-    'data',
-    `blockchain-${process.argv[2]}.json`
-  );
+const PORT = parseInt(process.argv[2]) || parseInt(process.env.PORT) || 5001;
+const NODE_URL = process.argv[3] || 'http://localhost:5001';
 
-  let blockchain = blockchainJSON.read(true);
+const DIFFICULTY = parseInt(process.env.DIFFICULTY) || 1;
+const MINE_RATE = parseInt(process.env.MINE_RATE) || 1000;
 
-  if (Object.keys(blockchain).length === 0) {
-    blockchain = new Blockchain();
+const blockchain = Blockchain.createChain('Blockchain');
 
-    blockchainJSON.write(blockchain);
-  } else {
-    Object.setPrototypeOf(blockchain, Blockchain.prototype);
-  }
-
-  return blockchain;
-};
-
-const blockchain = setupBlockchain();
-
-export { blockchain };
+export { PORT, NODE_URL, DIFFICULTY, MINE_RATE, blockchain };

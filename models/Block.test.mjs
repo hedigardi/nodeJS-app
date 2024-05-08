@@ -1,8 +1,8 @@
-import { test, describe, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import Block from './Block.mjs';
 
 describe('Block tests', () => {
-  test('should create block with correct attributes', () => {
+  it('should create block with correct attributes', () => {
     const index = 1;
     const timestamp = Date.now();
     const previousHash = 'previousHash';
@@ -16,7 +16,7 @@ describe('Block tests', () => {
     expect(block.data).toEqual(data);
   });
 
-  test('should create block with correct proof of work', () => {
+  it('should create block with correct proof of work', () => {
     const index = 1;
     const timestamp = Date.now();
     const previousHash = 'previousHash';

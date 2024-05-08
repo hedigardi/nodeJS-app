@@ -1,12 +1,10 @@
-import { blockchain } from '../startup.mjs';
-import ErrorResponse from '../utilities/ErrorResponseModel.mjs';
-import ResponseModel from '../utilities/ResponseModel.mjs';
+import { PORT, blockchain } from '../startup.mjs';
 import FileHandler from '../utilities/fileHandler.mjs';
+import ResponseModel from '../utilities/ResponseModel.mjs';
+import ErrorResponse from '../utilities/ErrorResponseModel.mjs';
+import Blockchain from '../models/Blockchain.mjs';
 
-const blockchainJSON = new FileHandler(
-  'data',
-  `blockchain-${process.argv[2]}.json`
-);
+const blockchainJSON = new FileHandler('data', `blockchain-${PORT}.json`);
 
 const getBlockchain = (req, res, next) => {
   res.status(200).json(new ResponseModel({ status: 200, data: blockchain }));
@@ -29,58 +27,122 @@ const getBlockByIndex = (req, res, next) => {
   const block = blockchain.chain[index];
 
   if (!block) {
-    return next(
-      new ErrorResponse(`Couldn't find block with index ${index}`, 404)
-    );
+    return next(new ErrorResponse(`Block with index ${index} not found`, 404));
   }
 
   res.status(200).json(new ResponseModel({ status: 200, data: block }));
 };
 
-const mineBlock = (req, res, next) => {
-  const block = blockchain.proofOfWork(req.body);
+const mineBlock = async (req, res, next) => {
+  const body = req.body;
 
-  blockchainJSON.write(blockchain);
+  if (!(body instanceof Object && !(body instanceof Array))) {
+    return next(
+      new ErrorResponse(`${JSON.stringify(body)} is not a valid Object`, 400)
+    );
+  }
 
-  res.status(201).json(new ResponseModel({ status: 201, data: block }));
+  const block = blockchain.proofOfWork(body);
+
+  try {
+    await distributeBlocksToNodes(block);
+    blockchainJSON.write(blockchain);
+    res.status(201).json(new ResponseModel({ status: 201, data: block }));
+  } catch (error) {
+    return next(new ErrorResponse(error.message, error.status));
+  }
+};
+
+const distributeBlocksToNodes = async (block) => {
+  await Promise.all(
+    blockchain.memberNodes.map(async (url) => {
+      await fetch(`${url}/api/v1/blockchain/blocks/distribute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(block),
+      });
+    })
+  );
+};
+
+const distributeBlocks = (req, res, next) => {
+  const block = req.body;
+  const lastBlock = blockchain.getLastBlock();
+  const currentHash = lastBlock.hash === block.previousHash;
+  const currentIndex = lastBlock.index + 1 === block.index;
+
+  if (currentHash && currentIndex) {
+    blockchain.chain.push(block);
+    blockchainJSON.write(blockchain);
+    res.status(201).json(new ResponseModel({ status: 201, data: block }));
+  } else {
+    next(
+      new ErrorResponse(`Unable to add the block to ${req.headers.host}`, 400)
+    );
+  }
 };
 
 const syncChain = async (req, res, next) => {
-  let maxLength = blockchain.chain.length;
-  let longestChain = null;
-
   try {
-    for (const member of blockchain.memberNodes) {
-      const response = await fetch(`${member}/api/v1/blockchain`);
-
-      if (response.ok) {
-        const result = await response.json();
-
-        if (
-          result.data &&
-          result.data.chain &&
-          result.data.chain.length > maxLength
-        ) {
-          maxLength = result.data.chain.length;
-          longestChain = result.data.chain;
-        }
-      }
-    }
-
-    if (longestChain) {
-      blockchain.chain = longestChain;
-      blockchainJSON.write(blockchain);
-    }
+    await synchronizeWithNodes();
+    res.status(200).json(
+      new ResponseModel({
+        status: 200,
+        data: { message: `Synchronization completed on ${blockchain.nodeUrl}` },
+      })
+    );
   } catch (error) {
     return next(new ErrorResponse(error, error.status));
   }
+};
 
-  res.status(200).json(
-    new ResponseModel({
-      status: 200,
-      data: { message: 'Synchronization is successful!' },
-    })
-  );
+const synchronizeWithNodes = async () => {
+  const invalidChains = [];
+  let syncCounter = 0;
+
+  const { length: nodesToCheck } = blockchain.memberNodes;
+
+  if (nodesToCheck === 0) {
+    throw new ErrorResponse(
+      `${blockchain.nodeUrl} is not connected to the network`,
+      400
+    );
+  }
+
+  for (const member of blockchain.memberNodes) {
+    try {
+      const response = await fetch(`${member}/api/v1/blockchain`);
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const {
+        data: { chain: remoteChain },
+      } = await response.json();
+
+      if (remoteChain.length > blockchain.chain.length) {
+        if (Blockchain.validateChain(remoteChain)) {
+          blockchain.chain = remoteChain;
+          blockchainJSON.write(blockchain);
+          syncCounter++;
+        } else {
+          invalidChains.push(member);
+        }
+      }
+    } catch (error) {
+      throw new ErrorResponse(error.message, error.status);
+    }
+  }
+
+  if (invalidChains.length > 0) {
+    throw new ErrorResponse(
+      `${invalidChains.join(', ')} has been compromised!`,
+      400
+    );
+  }
 };
 
 export {
@@ -89,5 +151,6 @@ export {
   getLatestBlock,
   getBlockByIndex,
   mineBlock,
+  distributeBlocks,
   syncChain,
 };

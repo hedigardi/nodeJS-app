@@ -4,17 +4,10 @@ import errorHandler from './middleware/errorHandler.mjs';
 import blockchainRouter from './routes/blockchain-routes.mjs';
 import ErrorResponse from './utilities/ErrorResponseModel.mjs';
 import membersRouter from './routes/members-routes.mjs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 dotenv.config({ path: './config/config.env' });
 
 const app = express();
-
-const filename = fileURLToPath(import.meta.url);
-const dirname = path.dirname(filename);
-
-global.__appdir = dirname;
 
 app.use(express.json());
 

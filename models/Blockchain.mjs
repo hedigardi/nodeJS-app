@@ -56,19 +56,28 @@ const Blockchain = class {
     do {
       timestamp = Date.now();
       nonce++;
-      difficulty = lastBlock.difficulty;
-      hash = this.hashBlock({ ...block, timestamp, nonce, difficulty });
-    } while (!hash.startsWith('0'.repeat(difficulty)));
+      difficulty = this.adjustDifficulty(lastBlock, timestamp);
+      hash = this.hashBlock({
+        ...block,
+        timestamp,
+        nonce,
+        difficulty,
+        previousBlockHash: lastBlock.currentBlockHash,
+      });
+    } while (hash.substring(0, difficulty) !== '0'.repeat(difficulty));
 
     Object.assign(block, { timestamp, hash, nonce, difficulty });
 
     return block;
   }
 
-  adjustDifficulty(block) {
-    let { difficulty, timestamp } = block;
+  adjustDifficulty(lastBlock, timestamp) {
+    const MINE_RATE = process.env.MINE_RATE;
+    let { difficulty } = lastBlock;
 
-    return timestamp + process.env.MINE_RATE > timestamp
+    if (difficulty < 1) return 1;
+
+    return timestamp - lastBlock.timestamp > MINE_RATE
       ? +difficulty + 1
       : +difficulty - 1;
   }

@@ -4,9 +4,11 @@
   "description": "My NodeJS Blockchain App",
   "main": "server.mjs",
   "scripts": {
+    "start": "node --env-file=config/config.env server.mjs 5001 http://localhost:5001",
     "node-1": "nodemon --env-file=config/config.env server.mjs 5001 http://localhost:5001",
     "node-2": "nodemon --env-file=config/config.env server.mjs 5002 http://localhost:5002",
-    "test": "vitest"
+    "test": "vitest",
+    "test:ui": "vitest --ui"
   },
   "author": "Hedi Gardi",
   "license": "MIT",

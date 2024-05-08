@@ -2,7 +2,7 @@
 
 ## Installation
 
-1. Clone the WestCoast-Education repository:
+1. Clone the repository:
    ```bash
    git clone https://github.com/hedigardi/nodeJS-app.git
    ```

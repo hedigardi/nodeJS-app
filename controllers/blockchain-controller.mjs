@@ -45,7 +45,7 @@ const mineBlock = async (req, res, next) => {
   const block = blockchain.proofOfWork(body);
 
   try {
-    await distributeBlocksToNodes(block);
+    await broadcastBlocksToNodes(block);
     blockchainJSON.write(blockchain);
     res.status(201).json(new ResponseModel({ status: 201, data: block }));
   } catch (error) {
@@ -53,10 +53,10 @@ const mineBlock = async (req, res, next) => {
   }
 };
 
-const distributeBlocksToNodes = async (block) => {
+const broadcastBlocksToNodes = async (block) => {
   await Promise.all(
     blockchain.memberNodes.map(async (url) => {
-      await fetch(`${url}/api/v1/blockchain/blocks/distribute`, {
+      await fetch(`${url}/api/v1/blockchain/blocks/broadcast`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -67,7 +67,7 @@ const distributeBlocksToNodes = async (block) => {
   );
 };
 
-const distributeBlocks = (req, res, next) => {
+const broadcastBlocks = (req, res, next) => {
   const block = req.body;
   const lastBlock = blockchain.getLastBlock();
   const currentHash = lastBlock.hash === block.previousHash;
@@ -151,6 +151,6 @@ export {
   getLatestBlock,
   getBlockByIndex,
   mineBlock,
-  distributeBlocks,
+  broadcastBlocks,
   syncChain,
 };
